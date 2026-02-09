@@ -1,0 +1,81 @@
+name: 'Maven Update Release'
+description: 'Запуск обновление релиза проекта'
+author: 'demid1984'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  user-email:
+    description: 'Email используемый в комите новой версии'
+    required: true
+  user-name:
+    description: 'Имя пользователя используемое в комите новой версии'
+    required: true
+  release-version-key:
+    description: >
+      Ключ, для обновления релиза. 'X' → major, 'Y' → minor, 'Z' → incremental (patch)
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check out the repo
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}
+        fetch-depth: 0
+
+    - name: Configure Git
+      shell: bash
+      run: |
+        git config --global user.email "${{ inputs.user-email }}"
+        git config --global user.name "${{ inputs.user-name }}"
+
+    - name: Parse version and bump
+      id: bump
+      shell: bash
+      env:
+        VERSION_KEY: ${{ inputs.release-version-key }}
+      run: |
+        # Validate version key
+        if [[ "$VERSION_KEY" != "X" && "$VERSION_KEY" != "Y" && "$VERSION_KEY" != "Z" ]]; then
+          echo "❌ Invalid release-version-key: '$VERSION_KEY'. Must be 'X', 'Y', or 'Z'."
+          exit 1
+        fi
+
+        CURRENT_MAJOR=$(./mvnw org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version -q org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.majorVersion}')
+        CURRENT_MINOR=$(./mvnw org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version -q org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.minorVersion}')
+        CURRENT_INCREMENTAL=$(./mvnw org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version -q org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.incrementalVersion}')
+
+        echo "Current version: $CURRENT_MAJOR.$CURRENT_MINOR.$CURRENT_INCREMENTAL"
+
+        # Bump logic
+        case "$VERSION_KEY" in
+          X)
+            NEW_MAJOR=$((CURRENT_MAJOR + 1))
+            NEW_MINOR=0
+            NEW_INCREMENTAL=0
+            ;;
+          Y)
+            NEW_MAJOR=$CURRENT_MAJOR
+            NEW_MINOR=$((CURRENT_MINOR + 1))
+            NEW_INCREMENTAL=0
+            ;;
+          Z)
+            NEW_MAJOR=$CURRENT_MAJOR
+            NEW_MINOR=$CURRENT_MINOR
+            NEW_INCREMENTAL=$((CURRENT_INCREMENTAL + 1))
+            ;;
+        esac
+
+        NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_INCREMENTAL"
+        echo "📦 New version: $NEW_VERSION"
+        
+        ./mvnw org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion="$NEW_VERSION" \
+          org.codehaus.mojo:versions-maven-plugin:2.18.0:commit \
+          org.apache.maven.plugins:maven-scm-plugin:2.1.0:checkin -Dmessage="Bump version to $NEW_VERSION"
+
+        # Output the new version for use in subsequent steps (if needed)
+        echo "new-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+        echo "version=$CURRENT_MAJOR.$CURRENT_MINOR.$CURRENT_INCREMENTAL" >> "$GITHUB_OUTPUT"
