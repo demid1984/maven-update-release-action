@@ -1,122 +1,76 @@
-# Maven Update Release Action
+# GitHub Action: Обновление версии релиза (Maven)
 
-> 📦 GitHub Action для автоматического обновления версии Maven-проекта по семантическому версионированию (MAJOR.MINOR.PATCH)
+Данная Composite Action автоматизирует повышение версии Maven-проекта по стратегии семантического версионирования (`MAJOR.MINOR.PATCH`), коммитит изменения в репозиторий и фиксирует новую версию с помощью `versions-maven-plugin`.
 
----
+## 📦 Возможности
 
-## 📋 Описание
+- Автоматическое чтение текущей версии из `pom.xml`
+- Повышение версии на **major**, **minor** или **patch** по ключу:
+    - `X` → увеличение старшего номера (MAJOR)
+    - `Y` → увеличение среднего номера (MINOR)
+    - `Z` → увеличение младшего номера (PATCH)
+- Фиксация изменений через Maven SCM Plugin (`mvn scm:checkin`)
+- Получение новой версии как выходного параметра (`new-version`) — для использования в последующих шагах
 
-Запускает обновление релизной версии Maven-проекта с поддержкой:
-- `X` — **MAJOR** (мажорная версия: breaking changes)
-- `Y` — **MINOR** (минорная версия: backward-compatible features)
-- `Z` — **PATCH** (патч-версия: backward-compatible bug fixes)
+## 📋 Требования
 
-Она:
-- Читает текущую версию из `pom.xml`
-- Увеличивает нужный компонент и сбрасывает меньшие (если требуется)
-- Применяет новую версию с помощью [`versions-maven-plugin`](https://www.mojohaus.org/versions-maven-plugin/)
-- Фиксирует изменения в Git с предустановленным сообщением
+- Проект должен быть Maven-артефактом с корректно настроенным `pom.xml`
+- `./mvnw` (Maven Wrapper) должен присутствовать в корне репозитория
+- Репозиторий должен быть инициализирован как Git-репозиторий
+- Учётная запись GitHub с правами на push в ветку (обычно — в действии используется `ref: ${{ github.ref }}`, напр. `refs/heads/main`)
 
----
+## 🛠️ Использование
 
-## 🛠 Использование
-
-```yaml
-uses: demid1984/maven-update-release-action@v1
-with:
-  user-email: your.email@example.com
-  user-name: Your Name
-  release-version-key: Z  # X, Y или Z
-```
-
-### 📌 Пример: обновление патч-версии (Patch)
+### Пример: Повышение версии на патч-релиз
 
 ```yaml
-- name: Bump patch version
-  uses: demid1984/maven-update-release-action@v1
-  with:
-    user-email: devops@example.com
-    user-name: CI Bot
-    release-version-key: Z
+name: Release Patch
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bump version to next patch
+        uses: demid1984/maven-update-release-action@v0.0.2
+        with:
+          user-email: "your-email@example.com"
+          user-name: "Your Name"
+          release-version-key: "Z"  # Z = patch
 ```
 
-### 📌 Пример: обновление минорной версии
+## 📥 Входные параметры
 
-```yaml
-- name: Bump minor version
-  uses: demid1984/maven-update-release-action@v1
-  with:
-    user-email: devops@example.com
-    user-name: CI Bot
-    release-version-key: Y
-```
+| Параметр | Обязательный | Описание |
+|----------|--------------|----------|
+| `user-email` | ✅ Да | Email, используемый для коммита (например, `you@example.com`) |
+| `user-name` | ✅ Да | Имя пользователя, используемое для коммита (например, `Your Name`) |
+| `release-version-key` | ✅ Да | Ключ повышения версии: `"X"` (major), `"Y"` (minor), `"Z"` (patch) |
 
-### 📌 Пример: обновление мажорной версии
+## 📤 Выходные параметры
 
-```yaml
-- name: Bump major version
-  uses: demid1984/maven-update-release-action@v1
-  with:
-    user-email: devops@example.com
-    user-name: CI Bot
-    release-version-key: X
-```
+| Параметр | Описание |
+|----------|----------|
+| `new-version` | Новая версия (например, `1.2.3`) |
+| `version` | Текущая версия *до* обновления (например, `1.2.2`) |
 
----
-
-## 🔧 Входные параметры
-
-| Параметр              | Обязательный | Описание |
-|-----------------------|--------------|----------|
-| `user-email`          | ✅ Да        | Email, используемый в коммите (например: `devops@example.com`) |
-| `user-name`           | ✅ Да        | Имя пользователя, используемое в коммите (например: `CI Bot`) |
-| `release-version-key` | ✅ Да        | Тип обновления: `X` (MAJOR), `Y` (MINOR), `Z` (PATCH) |
-
-> ⚠️ **Важно:** Ключ `release-version-key` чувствителен к регистру. Используйте только `X`, `Y`, `Z` (большие буквы).
-
----
-
-## 🔄 Выходные данные
-
-После выполнения доступны:
-- `new-version` — новая версия (например: `2.3.7`)
-- `version` — предыдущая версия (например: `2.3.6`)
-
-Пример использования:
-
-```yaml
-- name: Bump version and tag release
-  id: bump
-  uses: demid1984/maven-update-release-action@v1
-  with:
-    user-email: bot@ci.com
-    user-name: Release Bot
-    release-version-key: Z
-
-- name: Create Git tag
-  run: |
-    git tag v${{ steps.bump.outputs.new-version }}
-    git push origin v${{ steps.bump.outputs.new-version }}
-```
-
----
-
-## 🧩 Зависимости
-
-Действие использует следующие Maven-плагины:
-- [`build-helper-maven-plugin:3.6.0`](https://www.mojohaus.org/build-helper-maven-plugin/) — для парсинга версии
-- [`exec-maven-plugin:3.1.0`](https://www.mojohaus.org/exec-maven-plugin/) — для извлечения версии
-- [`versions-maven-plugin:2.18.0`](https://www.mojohaus.org/versions-maven-plugin/) — для установки и фиксации версии
-- [`maven-scm-plugin:2.1.0`](https://maven.apache.org/scm/maven-scm-plugin/) — для коммита изменений
-
-> ✅ Требуется наличие `./mvnw` (Maven Wrapper).
-> 
-> ✅ Требуется корректно заполненная секция scm
-
----
+> ✅ Выходные параметры доступны в последующих шагах как `steps.<step_id>.outputs.<name>` (см. [документацию GitHub Actions](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idoutputs))
 
 ## 📜 Лицензия
 
-Этот проект распространяется под лицензией [MIT](LICENSE).  
-© 2026 [demid1984](https://github.com/demid1984)
-```
+Данная работа распространяется под лицензией [MIT](LICENSE). Смотрите файл `LICENSE` для подробной информации.
+
+---
+
+## 🤝 Вклад в проект
+
+Приветствуются PR и issues!
+Следуйте стандартам: проверяйте форматирование, добавляйте тесты, описывайте изменения.
+
+---
+
+© 2026, demid1984
+Сделано с ❤️ для надёжных CI/CD потоков.
