@@ -81,7 +81,8 @@ runs:
         ./mvnw org.codehaus.mojo:versions-maven-plugin:2.18.0:commit
         git add pom.xml
         git commit -m "Bump version to $NEW_VERSION"
-        git push origin HEAD:${GITHUB_REF#refs/heads/}
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        git push origin HEAD:$CURRENT_BRANCH
 
         # Output the new version for use in subsequent steps (if needed)
         echo "new-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
