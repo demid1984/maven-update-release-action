@@ -16,6 +16,10 @@ inputs:
     description: >
       Ключ, для обновления релиза. 'X' → major, 'Y' → minor, 'Z' → incremental (patch)
     required: true
+  maven-args:
+    description: 'Дополнительные аргументы для Maven'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -44,13 +48,13 @@ runs:
           exit 1
         fi
 
-        CURRENT_MAJOR=$(./mvnw -q -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.majorVersion}')
+        CURRENT_MAJOR=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.majorVersion}')
         echo "MAJOR COMMAND EXIT CODE: $?, VALUE=$CURRENT_MAJOR"
         
-        CURRENT_MINOR=$(./mvnw -q -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.minorVersion}')
+        CURRENT_MINOR=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.minorVersion}')
         echo "MINOR COMMAND EXIT CODE: $?, VALUE=$CURRENT_MINOR"
         
-        CURRENT_INCREMENTAL=$(./mvnw -q -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.incrementalVersion}')
+        CURRENT_INCREMENTAL=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.incrementalVersion}')
         echo "INCREMENTAL COMMAND EXIT CODE: $?, VALUE=$CURRENT_INCREMENTAL"
 
         echo "Current version: $CURRENT_MAJOR.$CURRENT_MINOR.$CURRENT_INCREMENTAL"
@@ -77,12 +81,9 @@ runs:
         NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_INCREMENTAL"
         echo "📦 New version: $NEW_VERSION"
         
-        ./mvnw org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion="$NEW_VERSION"
-        ./mvnw org.codehaus.mojo:versions-maven-plugin:2.18.0:commit
-        git add pom.xml
-        git commit -m "Bump version to $NEW_VERSION"
-        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        git push origin HEAD:$CURRENT_BRANCH
+        ./mvnw ${{ inputs.maven-args }} org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion="$NEW_VERSION"
+        ./mvnw ${{ inputs.maven-args }} org.codehaus.mojo:versions-maven-plugin:2.18.0:commit
+        ./mvnw ${{ inputs.maven-args }} org.apache.maven.plugins:maven-scm-plugin:2.1.0:checkin -Dmessage="Bump version to $NEW_VERSION"
 
         # Output the new version for use in subsequent steps (if needed)
         echo "new-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
