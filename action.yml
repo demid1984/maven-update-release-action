@@ -33,12 +33,12 @@ runs:
     - name: Configure Git
       shell: bash
       run: |
-        git config --global user.email "${{ inputs.user-email }}"
-        git config --global user.name "${{ inputs.user-name }}"
+        git config user.email "${{ inputs.user-email }}"
+        git config user.name "${{ inputs.user-name }}"
 
     - name: Parse version and bump
       id: bump
-      shell: bash {0}
+      shell: bash
       env:
         VERSION_KEY: ${{ inputs.release-version-key }}
       run: |
@@ -49,13 +49,10 @@ runs:
         fi
 
         CURRENT_MAJOR=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.majorVersion}')
-        echo "MAJOR COMMAND EXIT CODE: $?, VALUE=$CURRENT_MAJOR"
         
         CURRENT_MINOR=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.minorVersion}')
-        echo "MINOR COMMAND EXIT CODE: $?, VALUE=$CURRENT_MINOR"
         
         CURRENT_INCREMENTAL=$(./mvnw -q ${{ inputs.maven-args }} -DforceStdout org.codehaus.mojo:build-helper-maven-plugin:3.6.0:parse-version org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.executable=echo -Dexec.args='${parsedVersion.incrementalVersion}')
-        echo "INCREMENTAL COMMAND EXIT CODE: $?, VALUE=$CURRENT_INCREMENTAL"
 
         echo "Current version: $CURRENT_MAJOR.$CURRENT_MINOR.$CURRENT_INCREMENTAL"
 
