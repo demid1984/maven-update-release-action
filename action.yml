@@ -34,7 +34,7 @@ runs:
 
     - name: Parse version and bump
       id: bump
-      shell: bash
+      shell: bash {0}
       env:
         VERSION_KEY: ${{ inputs.release-version-key }}
       run: |
